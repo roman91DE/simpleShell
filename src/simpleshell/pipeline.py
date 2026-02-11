@@ -145,8 +145,9 @@ def _execute_multi(commands: list[Command]) -> int:
             processes.append(proc)
 
             # Close previous process's stdout in parent so EOF propagates
-            if i > 0 and processes[i - 1].stdout:
-                processes[i - 1].stdout.close()
+            prev_stdout = processes[i - 1].stdout if i > 0 else None
+            if prev_stdout is not None:
+                prev_stdout.close()
 
         for proc in processes:
             proc.wait()

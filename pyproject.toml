@@ -36,7 +36,14 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["simpleshell"]
 
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["src"]
+
 [dependency-groups]
 dev = [
     "ruff>=0.8",
+    "ty>=0.0.1a7",
 ]

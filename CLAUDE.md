@@ -17,12 +17,13 @@ uv run simpleshell
 ```bash
 uv run ruff check src/
 uv run ruff format src/
+uv run ty check
 ```
 
 ## Constraints
 
 - **Standard library only** at runtime — no third-party dependencies.
-- Dev dependency: ruff (linting/formatting).
+- Dev dependencies: ruff (linting/formatting), ty (type checking).
 - Python >= 3.12 required (uses match/case, modern type syntax).
 
 ## Architecture
