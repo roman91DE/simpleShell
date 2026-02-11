@@ -15,15 +15,16 @@ uv run simpleshell
 ## Development
 
 ```bash
-uv run ruff check src/
-uv run ruff format src/
+uv run ruff check src/ tests/
+uv run ruff format src/ tests/
 uv run ty check
+uv run pytest tests/ -v
 ```
 
 ## Constraints
 
 - **Standard library only** at runtime — no third-party dependencies.
-- Dev dependencies: ruff (linting/formatting), ty (type checking).
+- Dev dependencies: ruff (linting/formatting), ty (type checking), pytest (testing).
 - Python >= 3.12 required (uses match/case, modern type syntax).
 
 ## Architecture
