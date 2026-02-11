@@ -9,7 +9,7 @@ from simpleshell.builtins import BUILTIN_REGISTRY
 from simpleshell.completion import setup_completion
 from simpleshell.expansion import expand_globs, expand_tilde, expand_variables
 from simpleshell.pipeline import execute_pipeline, parse_redirections, split_pipeline
-from simpleshell.tokenizer import tokenize
+from simpleshell.tokenizer import AND, OR, tokenize
 
 HISTORY_FILE = os.path.expanduser("~/.simpleshell_history")
 
@@ -47,11 +47,9 @@ class Shell:
         2. Tokenize (shlex-based, operator-aware)
         3. Expand tilde (~)
         4. Expand globs (* ?)
-        5. Expand aliases (first token)
-        6. Split on pipes
-        7. Parse redirections per segment
-        8. Check if single builtin
-        9. Execute pipeline
+        5. Expand aliases (first token of each command list segment)
+        6. Split on && / || (command list operators)
+        7. For each segment: split on pipes, parse redirections, execute
         """
         # 1. Variable expansion on raw string (respects quoting)
         line = expand_variables(line)
@@ -72,31 +70,77 @@ class Shell:
         # 4. Glob expansion
         tokens = expand_globs(tokens)
 
-        # 5. Alias expansion
-        tokens = self._expand_aliases(tokens)
+        # 5-7. Split on && / || and execute each pipeline conditionally
+        try:
+            cmd_list = self._split_command_list(tokens)
+        except ValueError as e:
+            print(f"simpleshell: {e}", file=sys.stderr)
+            return
 
-        # 6. Split pipeline
+        for operator, segment_tokens in cmd_list:
+            # Check condition from previous pipeline
+            match operator:
+                case "&&" if self.last_exit_code != 0:
+                    continue
+                case "||" if self.last_exit_code == 0:
+                    continue
+
+            # Alias expansion per segment
+            segment_tokens = self._expand_aliases(segment_tokens)
+
+            self._execute_segment(segment_tokens)
+
+    @staticmethod
+    def _split_command_list(tokens: list[str]) -> list[tuple[str | None, list[str]]]:
+        """Split tokens on && and || into (operator, segment) pairs.
+
+        Returns [(None, first_segment), ("&&", second_segment), ("||", third), ...].
+        The first segment always has operator=None.
+        """
+        result: list[tuple[str | None, list[str]]] = []
+        current: list[str] = []
+        pending_op: str | None = None
+
+        for token in tokens:
+            if token in (AND, OR):
+                if not current:
+                    raise ValueError(f"syntax error near unexpected token `{token}'")
+                result.append((pending_op, current))
+                pending_op = token
+                current = []
+            else:
+                current.append(token)
+
+        if not current:
+            op = pending_op or "newline"
+            raise ValueError(f"syntax error near unexpected token `{op}'")
+        result.append((pending_op, current))
+
+        return result
+
+    def _execute_segment(self, tokens: list[str]) -> None:
+        """Execute a single pipeline segment (everything between && / ||)."""
         try:
             segments = split_pipeline(tokens)
         except ValueError as e:
             print(f"simpleshell: {e}", file=sys.stderr)
+            self.last_exit_code = 2
             return
 
-        # 7. Parse redirections
         try:
             commands = [parse_redirections(seg) for seg in segments]
         except ValueError as e:
             print(f"simpleshell: {e}", file=sys.stderr)
+            self.last_exit_code = 2
             return
 
-        # 8. Builtin check (single command, non-piped only)
+        # Builtin check (single command, non-piped only)
         if len(commands) == 1:
             cmd = commands[0]
             if cmd.argv[0] in BUILTIN_REGISTRY:
                 self._run_builtin(cmd)
                 return
 
-        # 9. Execute external pipeline
         self.last_exit_code = execute_pipeline(commands)
 
     def _run_builtin(self, cmd) -> None:

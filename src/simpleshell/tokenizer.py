@@ -9,7 +9,9 @@ PIPE = "|"
 REDIRECT_OUT = ">"
 REDIRECT_APPEND = ">>"
 REDIRECT_IN = "<"
-OPERATORS = {PIPE, REDIRECT_OUT, REDIRECT_APPEND, REDIRECT_IN}
+AND = "&&"
+OR = "||"
+OPERATORS = {PIPE, REDIRECT_OUT, REDIRECT_APPEND, REDIRECT_IN, AND, OR}
 
 
 def tokenize(line: str) -> list[str]:
@@ -19,7 +21,7 @@ def tokenize(line: str) -> list[str]:
     so that |, >, < are recognized as operator tokens even when adjacent
     to words (e.g., 'echo foo>bar' -> ['echo', 'foo', '>', 'bar']).
 
-    Consecutive '>' '>' are merged into '>>'.
+    Consecutive '>' '>' are merged into '>>', '&' '&' into '&&', '|' '|' into '||'.
     """
     lexer = shlex.shlex(line, posix=True)
     lexer.whitespace_split = False
@@ -30,12 +32,12 @@ def tokenize(line: str) -> list[str]:
 
 
 def _merge_operators(tokens: list[str]) -> list[str]:
-    """Merge consecutive '>' into '>>'."""
+    """Merge consecutive '>' into '>>', '&' '&' into '&&', '|' '|' into '||'."""
     merged: list[str] = []
     i = 0
     while i < len(tokens):
-        if tokens[i] == ">" and i + 1 < len(tokens) and tokens[i + 1] == ">":
-            merged.append(">>")
+        if i + 1 < len(tokens) and tokens[i] == tokens[i + 1] and tokens[i] in (">", "&", "|"):
+            merged.append(tokens[i] * 2)
             i += 2
         else:
             merged.append(tokens[i])

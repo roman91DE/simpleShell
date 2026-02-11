@@ -42,8 +42,8 @@ uv run ruff format src/
 2. `tokenize(line)` — shlex + operator-aware splitting
 3. `expand_tilde(tokens)` — `~` to home directory
 4. `expand_globs(tokens)` — `*` and `?` patterns
-5. `_expand_aliases(tokens)` — alias substitution with loop detection
-6. `split_pipeline(tokens)` — split on `|`
+5. `_split_command_list(tokens)` — split on `&&` / `||`
+6. Per segment: `_expand_aliases`, `split_pipeline` (split on `|`)
 7. `parse_redirections(segment)` — extract `>`, `>>`, `<` per command
 8. Builtin check (single non-piped command only)
 9. `execute_pipeline(commands)` — `subprocess.Popen` chain
